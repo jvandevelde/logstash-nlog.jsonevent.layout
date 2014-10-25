@@ -13,38 +13,50 @@ namespace nlog.jsonevent.layout
 {
     public class JsonEventLayoutV1 : Layout, IUsesStackTrace
     {
-        private readonly bool _locationInfo;
+        public const string ISO8601DatetimeTimeZoneFormatWithMillis = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        private const int LogstashJsonEventVersion = 1;
 
-        private readonly string _hostname = Environment.MachineName;
-        private DateTime _timestamp;
+        private readonly bool _includeCallsiteInfo;
+
         private string[] _ndc;
         private IDictionary<string, string> _mdc;
         private IDictionary<string, string> _exceptionInformation;
-        private const int Version = 1;
-
         private JObject _logstashEvent;
 
-        public static string IsoDatetimeTimeZoneFormatWithMillis = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-
-        
-        public JsonEventLayoutV1(bool locationInfo = false)
+        public JsonEventLayoutV1(bool includeCallsiteInfo = false)
         {
-            _locationInfo = locationInfo;
+            _includeCallsiteInfo = includeCallsiteInfo;
         }
 
         protected override string GetFormattedMessage(LogEventInfo logEvent)
         {
-            _timestamp = logEvent.TimeStamp;
             _exceptionInformation = new SortedDictionary<string, string>();
             _mdc = logEvent.Properties.ToDictionary(k => k.Key.ToString(), v => v.Value.ToString());
             _ndc = NestedDiagnosticsContext.GetAllMessages();
             _logstashEvent = new JObject();
             
-            _logstashEvent.Add("@version", new JValue(Version));
-            AddEventData("@timestamp", _timestamp.ToString(IsoDatetimeTimeZoneFormatWithMillis));
-            AddEventData("source_host", _hostname);
+            _logstashEvent.Add("@version", new JValue(LogstashJsonEventVersion));
+            AddEventData("@timestamp", logEvent.TimeStamp.ToString(ISO8601DatetimeTimeZoneFormatWithMillis));
+            AddEventData("source_host", Environment.MachineName);
+            AddEventData("level", logEvent.Level.Name);
+            AddEventData("logger_name", logEvent.LoggerName);
             AddEventData("message", logEvent.FormattedMessage);
 
+            BuildExceptionInformation(logEvent);
+
+            if (_includeCallsiteInfo)
+            {
+                BuildCallsiteInformation(logEvent);
+            }
+
+            AddEventData("mdc", _mdc);
+            AddEventData("ndc", string.Join(" | ", _ndc));
+            
+            return string.Format("{0}{1}", JsonConvert.SerializeObject(_logstashEvent, Formatting.Indented), Environment.NewLine);
+        }
+
+        private void BuildExceptionInformation(LogEventInfo logEvent)
+        {
             if (logEvent.Exception != null)
             {
                 var exception = logEvent.Exception;
@@ -55,18 +67,6 @@ namespace nlog.jsonevent.layout
 
                 AddEventData("exception", _exceptionInformation);
             }
-
-            if (_locationInfo)
-            {
-                BuildCallsiteInformation(logEvent);
-            }
-
-            AddEventData("logger_name", logEvent.LoggerName);
-            AddEventData("mdc", _mdc);
-            AddEventData("ndc", string.Join(" | ", _ndc));
-            AddEventData("level", logEvent.Level.Name);
-
-            return string.Format("{0}{1}", JsonConvert.SerializeObject(_logstashEvent, Formatting.Indented), Environment.NewLine);
         }
 
         private void BuildCallsiteInformation(LogEventInfo logEvent)
