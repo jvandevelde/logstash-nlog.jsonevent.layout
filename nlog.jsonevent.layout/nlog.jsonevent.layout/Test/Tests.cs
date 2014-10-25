@@ -31,7 +31,7 @@ namespace nlog.jsonevent.layout.Test
         {
 
             var config = new LoggingConfiguration();
-            _target = new MockTargetV1(new JsonEventLayoutV1(false, "", ""));
+            _target = new MockTargetV1(new JsonEventLayoutV1(true));
             config.AddTarget("mock", _target);
             //_target.Layout = @"${message}";
 
@@ -57,6 +57,8 @@ namespace nlog.jsonevent.layout.Test
             _logger.Fatal("uh-oh", new InvalidCastException(exceptionMessage));
             var message = _target.GetMessages()[0];
             var obj = JsonConvert.DeserializeObject(message);
+            Console.WriteLine(message);
+            
             //JSONObject jsonObject = (JSONObject) obj;
             //JSONObject exceptionInformation = (JSONObject) jsonObject.get("exception");
 
