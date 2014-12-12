@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using NLog;
 using NLog.Config;
+using NLog.Layouts;
 using NUnit.Framework;
 
 namespace nlog.jsonevent.layout.Test
@@ -11,7 +12,7 @@ namespace nlog.jsonevent.layout.Test
     {
         private static Logger _logger;
         private static MockTargetV1 _target;
-        private static MockTargetV1 _userFieldsTarget;
+        private static MockTargetV1 _userFieldsTargeton;
         private static JsonEventLayoutV1 userFieldsLayout;
         //static  String userFieldsSingle = new String("field1:value1");
         //static  String userFieldsMulti = new String("field2:value2,field3:value3");
@@ -32,7 +33,13 @@ namespace nlog.jsonevent.layout.Test
 
             var config = new LoggingConfiguration();
             _target = new MockTargetV1(new JsonEventLayoutV1(true));
-            config.AddTarget("mock", _target);
+            var t2 = new NLog.Targets.NetworkTarget()
+            {
+                Layout = @"${message}",
+                Address = @"tcp4://192.168.133.128:1514"
+            };
+            //config.AddTarget("mock", _target);
+            config.AddTarget("tcp", t2);
             //_target.Layout = @"${message}";
 
             var rule = new LoggingRule("*", LogLevel.Debug, _target);
